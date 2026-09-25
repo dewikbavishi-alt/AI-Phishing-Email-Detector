@@ -57,10 +57,16 @@ def parse_eml(raw_bytes):
         hrefs = re.findall(r'href=["\']([^"\']+)', html, re.IGNORECASE)
         body += "\n" + "\n".join(hrefs)
 
+    # Keep the first (topmost) copy of each header. The top Authentication-Results
+    # is added by the receiving server; lower copies could be forged by the sender.
+    headers = {}
+    for key, value in message.items():
+        headers.setdefault(key, str(value))
+
     return {
         "subject": str(message.get("Subject", "")),
         "sender": str(message.get("From", "")),
-        "headers": {key: str(value) for key, value in message.items()},
+        "headers": headers,
         "body": body,
     }
 
@@ -68,6 +74,23 @@ def parse_eml(raw_bytes):
 def _domain(address):
     _, email_address = parseaddr(address or "")
     return email_address.rsplit("@", 1)[-1].lower() if "@" in email_address else ""
+
+
+def sender_address(sender):
+    _, email_address = parseaddr(sender or "")
+    return email_address.lower()
+
+
+def authentication_results(headers):
+    """SPF, DKIM and DMARC results from the receiving server: 'pass', 'fail' or None."""
+    auth = (headers or {}).get("Authentication-Results", "").lower()
+    results = {}
+
+    for check in ("spf", "dkim", "dmarc"):
+        match = re.search(rf"\b{check}=(\w+)", auth)
+        results[check] = match.group(1) if match else None
+
+    return results
 
 
 def analyze_headers(headers):
@@ -99,9 +122,8 @@ def analyze_headers(headers):
             f"Display name shows '{name_domain.group(0)}' but the email comes from {from_domain}"
         )
 
-    auth = headers.get("Authentication-Results", "").lower()
-    for check in ("spf", "dkim", "dmarc"):
-        if re.search(rf"{check}=(fail|softfail)", auth):
+    for check, outcome in authentication_results(headers).items():
+        if outcome in ("fail", "softfail"):
             findings.append(f"{check.upper()} authentication failed")
 
     return findings
@@ -122,14 +144,22 @@ def explain(clean_text, bundle, top_n=8):
     return [names[indices[i]] for i in order[:top_n] if contributions[i] > 0]
 
 
-def analyze_email(body, subject="", sender="", headers=None):
+def analyze_email(body, subject="", sender="", headers=None, trusted_senders=()):
     bundle = load_model()
+    notes = []
 
     full_text = f"Subject: {subject}\n\n{body}" if subject else body
     clean_text = preprocess(full_text)
     vector = bundle["vectorizer"].transform([clean_text])
 
     ml_probability = float(bundle["model"].predict_proba(vector)[0][1])
+
+    max_train_words = bundle.get("max_train_words", 50)
+    if len(clean_text.split()) > 2 * max_train_words:
+        notes.append(
+            "This email is much longer than any email the model was trained on "
+            f"(up to {max_train_words} words after cleaning), so the text score is less reliable."
+        )
 
     phishing_type = None
     if ml_probability >= 0.5:
@@ -148,6 +178,29 @@ def analyze_email(body, subject="", sender="", headers=None):
     # A dangerous link or spoofed sender is suspicious even if the wording looks normal
     if max_url_score >= 50 or len(header_findings) >= 2:
         risk_score = max(risk_score, 40)
+
+    # The text model alone is the weakest signal, so it can only reach "Suspicious"
+    has_other_evidence = max_url_score >= 20 or header_findings
+    if not has_other_evidence and risk_score >= 60:
+        risk_score = 59
+        notes.append(
+            "Only the text model found this email risky: there are no risky links and "
+            "no sender problems, so it is marked Suspicious rather than Phishing."
+        )
+
+    # A trusted sender only counts when the receiving server verified it with DMARC,
+    # because anyone can type any address into the From field
+    auth = authentication_results(headers)
+    address = sender_address(sender)
+    if address and address in trusted_senders:
+        if auth["dmarc"] == "pass" and max_url_score < 50 and not header_findings:
+            risk_score = min(risk_score, 20)
+            notes.append(f"{address} is a trusted sender and passed DMARC authentication.")
+        else:
+            notes.append(
+                f"{address} is on your trusted list, but this email could not be verified "
+                "(no DMARC pass, or a risky link or sender problem), so trust was not applied."
+            )
 
     risk_score = int(round(min(risk_score, 100)))
 
@@ -170,4 +223,8 @@ def analyze_email(body, subject="", sender="", headers=None):
         "keywords": explain(clean_text, bundle),
         "urls": urls,
         "header_findings": header_findings,
+        "headers": headers or {},
+        "authentication": auth,
+        "sender_address": address,
+        "notes": notes,
     }

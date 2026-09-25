@@ -4,7 +4,10 @@ import json
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, Response
 
 from utils.analyzer import analyze_email, parse_eml, load_model
-from utils.database import init_db, save_scan, get_scan, get_recent_scans, get_stats
+from utils.database import (
+    init_db, save_scan, get_scan, get_recent_scans, get_stats,
+    get_trusted_senders, list_trusted_senders, add_trusted_sender, remove_trusted_sender,
+)
 from utils.report_generator import build_report
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -62,10 +65,38 @@ def analyze():
 
     email_data["body"] = email_data["body"][:MAX_TEXT_LENGTH]
 
-    result = analyze_email(**email_data)
+    result = analyze_email(**email_data, trusted_senders=get_trusted_senders())
     scan_id = save_scan(result)
 
     return redirect(url_for("result", scan_id=scan_id))
+
+
+@app.route("/trust/<int:scan_id>", methods=["POST"])
+def trust_sender(scan_id):
+    scan = get_scan(scan_id)
+    if scan is None or not scan.get("sender_address"):
+        abort(404)
+
+    add_trusted_sender(scan["sender_address"])
+    flash(f"{scan['sender_address']} added to trusted senders. The email was scanned again.")
+
+    # Re-scan the same email so the trust decision is applied (or explained)
+    result = analyze_email(
+        body=scan["body"],
+        subject="" if scan["subject"] == "(no subject)" else scan["subject"],
+        sender=scan["sender"],
+        headers=scan.get("headers", {}),
+        trusted_senders=get_trusted_senders(),
+    )
+    return redirect(url_for("result", scan_id=save_scan(result)))
+
+
+@app.route("/untrust", methods=["POST"])
+def untrust_sender():
+    address = request.form.get("address", "")
+    remove_trusted_sender(address)
+    flash(f"{address} removed from trusted senders.")
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/result/<int:scan_id>")
@@ -95,6 +126,7 @@ def dashboard():
         stats=get_stats(),
         scans=get_recent_scans(),
         metrics=load_metrics(),
+        trusted=list_trusted_senders(),
     )
 
 
@@ -110,8 +142,10 @@ def api_analyze():
         body=body[:MAX_TEXT_LENGTH],
         subject=str(data.get("subject", "")),
         sender=str(data.get("sender", "")),
+        trusted_senders=get_trusted_senders(),
     )
     result.pop("body")
+    result.pop("headers")
     return jsonify(result)
 
 

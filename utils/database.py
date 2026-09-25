@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_DIR = os.path.join(BASE_DIR, "database")
+DB_DIR = os.environ.get("PHISHGUARD_DB_DIR", os.path.join(BASE_DIR, "database"))
 DB_PATH = os.path.join(DB_DIR, "scans.db")
 
 
@@ -31,6 +31,37 @@ def init_db():
                 details TEXT NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trusted_senders (
+                address TEXT PRIMARY KEY,
+                added_at TEXT NOT NULL
+            )
+        """)
+
+
+def get_trusted_senders():
+    with get_connection() as conn:
+        return {row[0] for row in conn.execute("SELECT address FROM trusted_senders")}
+
+
+def list_trusted_senders():
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT address, added_at FROM trusted_senders ORDER BY address"
+        ).fetchall()
+
+
+def add_trusted_sender(address):
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO trusted_senders (address, added_at) VALUES (?, ?)",
+            (address.lower(), datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        )
+
+
+def remove_trusted_sender(address):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM trusted_senders WHERE address = ?", (address.lower(),))
 
 
 def save_scan(result):

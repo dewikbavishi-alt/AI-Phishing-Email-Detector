@@ -17,9 +17,20 @@
     <div class="actions">
       <a class="btn-primary" href="{{ url_for('report', scan_id=result.id) }}">&#11015; Download PDF report</a>
       <a class="btn-ghost" href="{{ url_for('home') }}">Analyze another email</a>
+      {% if result.sender_address and result.verdict != 'Safe' %}
+        <form action="{{ url_for('trust_sender', scan_id=result.id) }}" method="post">
+          <button type="submit" class="btn-ghost" title="Emails from this address will be trusted when they pass DMARC authentication">&#10004; Trust this sender</button>
+        </form>
+      {% endif %}
     </div>
   </div>
 </section>
+
+{% if result.notes %}
+<section class="card notes">
+  {% for note in result.notes %}<p>&#9432; {{ note }}</p>{% endfor %}
+</section>
+{% endif %}
 
 <div class="grid-3">
   <section class="card">
@@ -49,6 +60,13 @@
 
   <section class="card">
     <h2>&#128232; Sender checks</h2>
+    {% if result.authentication and result.authentication.values()|select|list %}
+      <div class="chips auth">
+        {% for check, outcome in result.authentication.items() %}
+          <span class="tag {{ 'ok' if outcome == 'pass' else ('danger' if outcome in ('fail', 'softfail') else '') }}">{{ check|upper }}: {{ outcome or 'none' }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
     {% if result.header_findings %}
       <ul>{% for f in result.header_findings %}<li>{{ f }}</li>{% endfor %}</ul>
     {% else %}

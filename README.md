@@ -25,6 +25,7 @@ Every scan is saved to a history dashboard and can be downloaded as a PDF report
 | **Link inspection** | Flags raw IP addresses, look-alike brand domains (for example `paypal.account-restore.com`), URL shorteners, punycode, risky top-level domains, `@` tricks, unencrypted http, and more. |
 | **Sender and header checks** | Upload a `.eml` file to check whether the Reply-To or Return-Path domain differs from the sender, whether the display name is spoofed, and whether SPF, DKIM or DMARC failed. |
 | **Combined risk score** | Merges the three signals into one score from 0 to 100, with a verdict of **Safe**, **Suspicious** or **Phishing**. |
+| **Trusted senders** | Mark a sender as trusted from any result. Trust is only applied when the email passes **DMARC**, because anyone can type any address into the From field. A dangerous link still overrides trust. |
 | **Scan history dashboard** | Stored in SQLite: counts, phishing types seen, model metrics and recent scans. |
 | **PDF reports** | Downloadable report for any scan ([example](docs/sample_report.pdf)). |
 | **JSON API** | `POST /api/analyze` for connecting it to other tools. |
@@ -37,11 +38,14 @@ risk = 0.7 × (ML phishing probability × 100)
      + 10 per sender problem (maximum 30)
 
 A link scoring 50+ or two or more sender problems raises the risk to at least 40.
+If only the text model finds a problem (no link scoring 20+, no sender problems),
+the risk is capped at 59, so the verdict can be Suspicious but never Phishing.
+A trusted sender that passes DMARC, with no risky link, is capped at 20 (Safe).
 
   0-34  Safe      35-59  Suspicious      60-100  Phishing
 ```
 
-Keeping the signals separate means a well-written phishing email with a malicious link or a spoofed sender can still be caught, even if the text model is fooled.
+Keeping the signals separate means a well-written phishing email with a malicious link or a spoofed sender can still be caught, even if the text model is fooled. It also works the other way: the text model, the least reliable signal, can't label an email Phishing on its own.
 
 ## Screenshots
 
@@ -70,7 +74,7 @@ To get an honest estimate, [`evaluate_real_world.py`](evaluate_real_world.py) te
 | ✅ 4/5 phishing caught | Fake Microsoft 365 password expiry, fake parcel fee, PayPal "account limited", "unusual activity" |
 | ❌ 1 phishing missed | An invoice fraud (business email compromise) email with no link and calm wording scored 44% |
 | ✅ 2/5 legitimate emails passed | Team lunch invite, reply about a project report |
-| ❌ 3 false alarms | Genuine GitHub and Amazon notifications. They use the same words as phishing ("password changed", "view it", "your account") |
+| ❌ 3 false alarms (marked Suspicious) | Genuine GitHub and Amazon notifications. They use the same words as phishing ("password changed", "view it", "your account") |
 
 **Overall: 6 out of 10 correct.**
 
@@ -78,6 +82,11 @@ What this shows:
 - **Dataset bias.** In the training data, friendly greetings such as "Hi there" appear only in phishing templates, so the model learned that a greeting is suspicious.
 - **Invoice fraud is hard to detect from text alone.** It usually has no link and no urgent language, so the link inspector and sender checks matter as much as the model.
 - **Link and header checks catch attacks the text model misses.** The spoofed PayPal sample triggers five separate sender warnings.
+
+**A real false positive from testing:** a long personal email from a friend (about 1,200 words after cleaning, while the longest training email has 46) was labelled Phishing at 98% by the text model. Splitting it into training-sized chunks didn't help: 84% of the chunks still scored as phishing. That showed the real problem was the narrow range of "legitimate" emails in the training data, not the length. The design changes that came from this:
+1. The text model alone can only reach **Suspicious**.
+2. Results warn when an email is far longer than anything in the training data.
+3. **Trusted senders**, verified with DMARC, so a known contact isn't flagged again but a forged copy of their address still is.
 
 ## Getting started
 
@@ -130,6 +139,8 @@ curl -X POST http://127.0.0.1:5000/api/analyze -H "Content-Type: application/jso
 - Uploaded files are read in memory and never saved to disk. Uploads are limited to 2 MB and to `.eml` and `.txt` files.
 - Email content is always escaped when shown, so HTML or scripts inside an email can't run in the browser.
 - Links in analyzed emails are never visited. All URL checks are offline string analysis.
+- Only the **topmost** `Authentication-Results` header is used. It is added by your own mail server, while lower copies could be inserted by the sender to fake a DMARC pass.
+- Trusted senders are only honoured when DMARC passes, so spoofing a trusted address doesn't work.
 - Debug mode is off unless `FLASK_DEBUG=1` is set.
 
 ## Future work

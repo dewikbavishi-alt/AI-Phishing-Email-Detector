@@ -215,6 +215,8 @@ def main():
             "vectorizer": vectorizer,
             "weights": feature_weights(best_model),
             "type_model": type_model,
+            # Longest training email, used to warn about emails far outside that range
+            "max_train_words": int(df["clean_text"].str.split().str.len().max()),
         },
         MODEL_PATH,
     )

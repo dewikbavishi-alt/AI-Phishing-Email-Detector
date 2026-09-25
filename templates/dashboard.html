@@ -41,6 +41,22 @@
 </div>
 
 <section class="card">
+  <h2>Trusted senders</h2>
+  {% if trusted %}
+    <p class="small muted">Emails from these addresses are treated as safe only when they pass DMARC authentication and contain no risky links.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Address</th><th>Added</th><th></th></tr>
+      {% for t in trusted %}
+        <tr><td>{{ t.address }}</td><td class="nowrap">{{ t.added_at }}</td>
+          <td><form action="{{ url_for('untrust_sender') }}" method="post"><input type="hidden" name="address" value="{{ t.address }}"><button type="submit" class="link-btn">Remove</button></form></td></tr>
+      {% endfor %}
+    </table></div>
+  {% else %}
+    <p class="muted">No trusted senders yet. Use <strong>Trust this sender</strong> on a scan result to add one.</p>
+  {% endif %}
+</section>
+
+<section class="card">
   <h2>Recent scans</h2>
   {% if scans %}
   <div class="table-wrap"><table>
