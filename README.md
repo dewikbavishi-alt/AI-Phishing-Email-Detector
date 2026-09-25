@@ -87,11 +87,12 @@ cd AI-Phishing-Email-Detector
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-python train_model.py
 python app.py
 ```
 
 Open http://127.0.0.1:5000. On macOS or Linux, activate the environment with `source venv/bin/activate`.
+
+The trained model (`model/detector.pkl`) is included, so the app runs straight away. To retrain it, download the dataset (see [Dataset](#dataset)), save it as `dataset/phishing email.csv`, and run `python train_model.py`.
 
 **Try it:**
 - Click one of the **sample** buttons on the home page.
