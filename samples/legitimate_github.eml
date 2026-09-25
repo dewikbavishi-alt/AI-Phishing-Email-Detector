@@ -1,0 +1,15 @@
+From: GitHub <noreply@github.com>
+Reply-To: noreply@github.com
+Return-Path: <noreply@github.com>
+To: dev@example.com
+Subject: [GitHub] Your pull request was merged
+Authentication-Results: mx.example.com; spf=pass; dkim=pass; dmarc=pass
+Content-Type: text/plain; charset="utf-8"
+
+Hi there,
+
+Your pull request "Fix typo in README" was merged into main by a maintainer.
+
+View it on GitHub: https://github.com/example/project/pull/42
+
+Thanks for contributing!

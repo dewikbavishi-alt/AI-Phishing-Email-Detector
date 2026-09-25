@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - AI Phishing Email Detector{% endblock %}
+{% block content %}
+{% set tones = {'Phishing': 'danger', 'Suspicious': 'warn', 'Safe': 'ok'} %}
+<h1>Dashboard</h1>
+
+<div class="stats">
+  <div class="stat card"><span class="muted">Emails scanned</span><strong>{{ stats.total }}</strong></div>
+  <div class="stat card danger"><span class="muted">Phishing</span><strong>{{ stats.phishing }}</strong></div>
+  <div class="stat card warn"><span class="muted">Suspicious</span><strong>{{ stats.suspicious }}</strong></div>
+  <div class="stat card ok"><span class="muted">Safe</span><strong>{{ stats.safe }}</strong></div>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Phishing types detected</h2>
+    {% set top = stats.by_type[0][1] if stats.by_type else 1 %}
+    {% for name, count in stats.by_type %}
+      <div class="hbar"><span>{{ name }}</span><div class="bar"><div class="bar-fill danger" style="width: {{ 100 * count / top }}%"></div></div><strong>{{ count }}</strong></div>
+    {% else %}
+      <p class="muted">No phishing emails detected yet.</p>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Model performance</h2>
+    {% if metrics %}
+      <div class="table-wrap"><table>
+        <tr><th>Model</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th></tr>
+        {% for name, m in metrics.models.items() %}
+          <tr class="{{ 'best' if name == metrics.best_model }}"><td>{{ name }}{% if name == metrics.best_model %} &#9733;{% endif %}</td>
+            <td>{{ m.accuracy }}</td><td>{{ m.precision }}</td><td>{{ m.recall }}</td><td>{{ m.f1 }}</td></tr>
+        {% endfor %}
+      </table></div>
+      <p class="small muted">Tested on {{ metrics.test_size }} held-out emails. The training data is synthetic and follows templates, so these scores overstate real-world accuracy. See the README for results on realistic emails.</p>
+      <img class="matrix" src="{{ url_for('static', filename='img/confusion_matrix.png') }}" alt="Confusion matrix">
+    {% else %}
+      <p class="muted">Run <code>python train_model.py</code> to see model metrics.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <h2>Recent scans</h2>
+  {% if scans %}
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Time</th><th>Subject</th><th>Verdict</th><th>Risk</th><th>Type</th><th>Links</th><th></th></tr>
+    {% for s in scans %}
+      <tr>
+        <td>{{ s.id }}</td><td class="nowrap">{{ s.created_at }}</td><td>{{ s.subject }}</td>
+        <td><span class="tag {{ tones[s.verdict] }}">{{ s.verdict }}</span></td>
+        <td>{{ s.risk_score }}</td><td>{{ s.phishing_type or '-' }}</td><td>{{ s.url_count }}</td>
+        <td class="nowrap"><a href="{{ url_for('result', scan_id=s.id) }}">View</a> &middot; <a href="{{ url_for('report', scan_id=s.id) }}">PDF</a></td>
+      </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}
+    <p class="muted">No scans yet. <a href="{{ url_for('home') }}">Analyze your first email</a>.</p>
+  {% endif %}
+</section>
+{% endblock %}

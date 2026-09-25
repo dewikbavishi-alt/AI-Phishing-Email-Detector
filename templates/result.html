@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ result.verdict }} - Scan #{{ result.id }}{% endblock %}
+{% block content %}
+{% set tones = {'Phishing': 'danger', 'Suspicious': 'warn', 'Safe': 'ok'} %}
+{% set levels = {'High': 'danger', 'Medium': 'warn', 'Low': 'ok'} %}
+{% set tone = tones[result.verdict] %}
+
+<section class="verdict card {{ tone }}">
+  <div class="gauge" style="--value: {{ result.risk_score }}">
+    <div class="gauge-inner"><strong>{{ result.risk_score }}</strong><span>/100 risk</span></div>
+  </div>
+  <div class="verdict-text">
+    <p class="muted small">Scan #{{ result.id }} &middot; {{ result.created_at }}</p>
+    <h1>{{ result.verdict }}</h1>
+    {% if result.phishing_type %}<p class="tag {{ tone }}">{{ result.phishing_type }}</p>{% endif %}
+    <p><strong>Subject:</strong> {{ result.subject }}<br><strong>From:</strong> {{ result.sender }}</p>
+    <div class="actions">
+      <a class="btn-primary" href="{{ url_for('report', scan_id=result.id) }}">&#11015; Download PDF report</a>
+      <a class="btn-ghost" href="{{ url_for('home') }}">Analyze another email</a>
+    </div>
+  </div>
+</section>
+
+<div class="grid-3">
+  <section class="card">
+    <h2>&#129302; Text analysis</h2>
+    <p class="big">{{ '%.1f'|format(result.ml_probability * 100) }}%</p>
+    <p class="muted small">chance of phishing ({{ result.model_name }})</p>
+    <div class="bar"><div class="bar-fill {{ tone }}" style="width: {{ result.ml_probability * 100 }}%"></div></div>
+    {% if result.keywords and result.ml_probability >= 0.2 %}
+      <p class="small">Words that raised the score:</p>
+      <div class="chips">{% for word in result.keywords %}<span class="chip static">{{ word }}</span>{% endfor %}</div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>&#128279; Links ({{ result.urls|length }})</h2>
+    {% for url in result.urls %}
+      <div class="url-item">
+        <span class="tag {{ levels[url.level] }}">{{ url.level }} &middot; {{ url.score }}</span>
+        <code class="url">{{ url.url }}</code>
+        {% if url.reasons %}<ul class="small">{% for r in url.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+        {% else %}<p class="small muted">No warning signs.</p>{% endif %}
+      </div>
+    {% else %}
+      <p class="muted">No links found.</p>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>&#128232; Sender checks</h2>
+    {% if result.header_findings %}
+      <ul>{% for f in result.header_findings %}<li>{{ f }}</li>{% endfor %}</ul>
+    {% else %}
+      <p class="muted">No problems found. Upload the email as a <code>.eml</code> file to check its full headers.</p>
+    {% endif %}
+  </section>
+</div>
+
+<details class="card">
+  <summary>Show email content</summary>
+  <pre class="email-body">{{ result.body }}</pre>
+</details>
+{% endblock %}

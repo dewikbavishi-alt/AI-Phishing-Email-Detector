@@ -1,0 +1,11 @@
+From: "PayPal Security <service@paypal.com>" <alert@paypal-secure-center.com>
+Reply-To: help-desk@account-review.top
+Return-Path: <bounce@mailer-7781.ru>
+To: customer@example.com
+Subject: Your account has been limited
+Date: Thu, 24 Sep 2026 09:14:00 +0000
+Authentication-Results: mx.example.com; spf=fail smtp.mailfrom=mailer-7781.ru; dkim=none; dmarc=fail header.from=paypal-secure-center.com
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body><p>Dear Customer,</p><p>We noticed unusual activity on your account and have temporarily limited it. To restore full access, please log in and verify your information within 24 hours.</p><p><a href="http://paypal.account-restore.com/signin/verify">Restore my account</a></p><p>If you do not verify, your account will be permanently suspended.</p><p>PayPal Security Team</p></body></html>

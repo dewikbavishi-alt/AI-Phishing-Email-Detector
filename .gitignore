@@ -1,0 +1,16 @@
+# Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Runtime data (created when the app runs)
+database/
+uploads/
+reports/
+
+# Trained model: rebuild with "python train_model.py"
+model/detector.pkl
+
+# Personal notes
+LINKEDIN_POST.txt

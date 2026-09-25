@@ -1,0 +1,4 @@
+*.pdf binary
+*.png binary
+*.pkl binary
+*.eml -text

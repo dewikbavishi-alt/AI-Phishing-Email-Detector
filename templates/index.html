@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Is this email a phishing attempt?</h1>
+  <p class="muted">Paste an email or upload a <code>.eml</code> file. A machine learning model reads the text, every link is checked for warning signs, and the sender headers are checked for spoofing.</p>
+</section>
+
+<form class="card" action="{{ url_for('analyze') }}" method="post" enctype="multipart/form-data" id="analyze-form">
+  <div class="grid-2">
+    <label>Sender (optional)
+      <input type="text" name="sender" id="sender" placeholder="security@paypa1-support.com">
+    </label>
+    <label>Subject (optional)
+      <input type="text" name="subject" id="subject" placeholder="Your account has been limited">
+    </label>
+  </div>
+
+  <label>Email content
+    <textarea name="body" id="body" rows="11" placeholder="Paste the full email text here..."></textarea>
+  </label>
+  <div class="row-between">
+    <div class="samples">
+      <span class="muted">Try a sample:</span>
+      <button type="button" class="chip" data-sample="phishing">Phishing</button>
+      <button type="button" class="chip" data-sample="parcel">Fake parcel</button>
+      <button type="button" class="chip" data-sample="safe">Legitimate</button>
+    </div>
+    <span class="muted small" id="char-count">0 characters</span>
+  </div>
+
+  <div class="divider"><span>or upload a file</span></div>
+
+  <label class="file-drop">
+    <input type="file" name="email_file" id="email_file" accept=".eml,.txt">
+    <span id="file-label">Choose a .eml or .txt file (max 2 MB). Saving an email as .eml also lets the sender headers be checked.</span>
+  </label>
+
+  <button type="submit" class="btn-primary" id="submit-btn">Analyze email</button>
+</form>
+
+<section class="features">
+  <div class="feature"><h3>&#129302; ML text analysis</h3><p>TF-IDF features and the best of three classifiers, chosen by F1 score. It also names the phishing type.</p></div>
+  <div class="feature"><h3>&#128279; Link inspection</h3><p>Checks for raw IPs, look-alike brand domains, URL shorteners, punycode and risky top-level domains.</p></div>
+  <div class="feature"><h3>&#128232; Header checks</h3><p>Flags Reply-To and Return-Path mismatches and failed SPF, DKIM and DMARC checks.</p></div>
+  <div class="feature"><h3>&#128196; PDF reports</h3><p>Download a report for any scan to share with your security team.</p></div>
+</section>
+{% endblock %}
