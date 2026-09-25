@@ -53,6 +53,10 @@ Keeping the signals separate means a well-written phishing email with a maliciou
 |---|---|
 | ![Credential phishing](docs/03-result-credential-phishing.png) | ![Safe](docs/04-result-safe.png) |
 
+## Dataset
+
+[Phishing and Legitimate Emails Dataset for ML 2026](https://www.kaggle.com/datasets/kuladeep19/phishing-and-legitimate-emails-dataset) by kuladeep19 on Kaggle: 10,000 emails (4,000 legitimate and 6,000 phishing across 10 types), each labelled with a phishing type and severity. The dataset is not included in this repository; download it from Kaggle.
+
 ## Model results and honest limitations
 
 **On the held-out test set** (1,992 emails): all three models reach 100% accuracy, precision, recall and F1. The phishing-type model is also 100% accurate.
@@ -115,7 +119,8 @@ curl -X POST http://127.0.0.1:5000/api/analyze -H "Content-Type: application/jso
 ├── templates/                # Jinja2 pages
 ├── static/                   # CSS, JavaScript, confusion matrix image
 ├── samples/                  # Example .eml files
-├── dataset/                  # Training data
+├── model/                    # Trained model and metrics
+├── dataset/                  # Kaggle CSV goes here (not included)
 └── docs/                     # Screenshots and a sample report
 ```
 

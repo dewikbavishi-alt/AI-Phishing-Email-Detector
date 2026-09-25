@@ -9,8 +9,8 @@ database/
 uploads/
 reports/
 
-# Trained model: rebuild with "python train_model.py"
-model/detector.pkl
+# Dataset: download from Kaggle (see README)
+dataset/
 
 # Personal notes
 LINKEDIN_POST.txt
